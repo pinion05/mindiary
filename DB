@@ -1,0 +1,157 @@
+CREATE DATABASE IF NOT EXISTS mindiary_db;
+USE mindiary_db;
+
+DROP TABLE IF EXISTS comfort_messages;
+DROP TABLE IF EXISTS daily_summaries;
+DROP TABLE IF EXISTS emotion_scores;
+DROP TABLE IF EXISTS emotion_analyses;
+DROP TABLE IF EXISTS diary_entries;
+DROP TABLE IF EXISTS emotion_categories;
+DROP TABLE IF EXISTS users;
+
+# 유저 테이블
+CREATE TABLE users(
+	id INT PRIMARY KEY,																	# 유저에 대한 id
+	email VARCHAR(255) NOT NULL UNIQUE,													# 유저 email
+	username VARCHAR(50) NOT NULL UNIQUE,												# 유저 이름(닉네임)
+	full_name VARCHAR(100) NOT NULL,													# 유저 이름(본명)
+	birth_date DATE,																	# 유저 생년월일
+	timezone VARCHAR(50),																# 유저 시간대(시차)
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP										# 유저 계정 생성 시간
+);
+
+# 일기 테이블
+CREATE TABLE diary_entries(
+	id INT PRIMARY KEY,																	# 일기에 대한 id
+    users_id INT,																		# 유저 id(foreign key)
+    title VARCHAR(20) NOT NULL,															# 일기 제목
+    content TEXT,																		# 일기 본문
+    entry_date DATE,																	# 일기에서 다루는 실제 날짜
+    weather VARCHAR(20),																# 일기에서 다루는 날짜(시간대)에 날씨
+    analysis_status ENUM('Processing') DEFAULT 'Processing',								# 일기에 대한 감정에 분석되는 동안 뜰 상태 메세지													
+    FOREIGN KEY (users_id) REFERENCES users(id)
+);
+
+# 감정 종류 테이블
+CREATE TABLE emotion_categories(
+	id INT PRIMARY KEY,																	# 감정 종류에 대한 id
+    name VARCHAR(50) NOT NULL,															# 감정 이름(한국어). 예) 행복, 화남, 지루함 등등
+    name_en VARCHAR(50) NOT NULL,														# 감정 이름(영문). 예) Happy, angly, tierd
+    color_code VARCHAR(7) NOT NULL,														# 감정에 대한 색상(시각화 할 때 사용). 예) 행복 - Pink, 화남 - Red 등등
+    intensity_level TINYINT NOT NULL CHECK(intensity_level BETWEEN 1 AND 10),				# 감정에 대한 강도. 예) 행복 - 8, 화남 - 6 등등
+    is_positive ENUM('Negative', 'Neutral', 'Positive') NOT NULL,						# 감정에 대한 분류. 예) Positive - 행복, Neutral - 지루함, Negative - 화남 등등
+    description TEXT
+);
+
+# 감정 분석 테이블
+CREATE TABLE emotion_analyses(
+	id INT PRIMARY KEY,																	# 감정 분석에 대한 id
+    diary_entry_id INT,																	# 감정 분석할 해당 일기 id
+    overall_sentiment ENUM('Positive', 'Negative', 'Neutral'),							# 일기에 대한 전반적인 감정분석 결과. 예) Positive - 긍정적인 일기, Negative - 부정적인 일기
+    confidence_score DECIMAL(5,4),														# AI에 분석에 대한 확신 수치(소수점 4번째 자리까지 저장)
+    dominant_emotion VARCHAR(100),														# 해당 일기에 대한 대표적인 감정
+    emotional_intensity DECIMAL(3,2),													# 해당 일기에서 느낄 수 있는 감정에 세기(소수점 2번째 자리까지 저장)
+    analysis_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,								# 해당 일기에 대한 감정 분석을 마친 시간
+    FOREIGN KEY (diary_entry_id) REFERENCES diary_entries(id)
+);
+
+# 감정 점수 테이블
+CREATE TABLE emotion_scores(
+	analysis_id INT,																	# 감정 분석 id
+    emotion_category_id INT,															# 감정 종류 id
+    score DECIMAL(3,2),																	# 감정을 수치화한 값(소수점 2번째 자리까지 저장)
+    intensity TINYINT NOT NULL CHECK(intensity BETWEEN 1 AND 10),						# 감정 강도에 대한 레벨(1~10단계로 분류)
+	FOREIGN KEY (analysis_id) REFERENCES emotion_analyses(id),
+    FOREIGN KEY (emotion_category_id) REFERENCES emotion_categories(id)
+);
+
+# 일기 요약 테이블
+CREATE TABLE daily_summaries(
+	analysis_id INT,																	# 감정 분석 id
+    summary_text TEXT,																	# 해당 일기를 요약한 내용
+    key_events JSON,																	# 해당 일기에 중요한 사건들
+    important_people JSON,																# 해당 일기에 언급된 주요 인물들
+    locations JSON,																		# 해당 일기에 언급된 장소들
+    activities JSON,																	# 해당 일기에 언급된 활동들
+    FOREIGN KEY (analysis_id) REFERENCES emotion_analyses(id)
+);
+
+# 위로(격려) 테이블
+CREATE TABLE comfort_messages(
+	analysis_id INT,																	# 감정 분석 id
+    message_type ENUM('Comfort') DEFAULT 'Comfort',										# 위로 메세지에 성격 분류
+    comfort_text TEXT,																	# 위로 메세지
+    encouragement_text TEXT,															# 격려 메세지
+    advice_text TEXT,																	# 조언 메세지
+    personalization_level TINYINT NOT NULL CHECK(personalization_level BETWEEN 1 AND 10),# 해당 메세지가 얼마나 사용자에게 맞춤화 되어있는지 수치화(1~10단계로 분류)
+    FOREIGN KEY (analysis_id) REFERENCES emotion_analyses(id)
+);
+
+-- ================================================
+-- 샘플 데이터 삽입
+-- ================================================
+
+-- users
+INSERT INTO users (id, email, username, full_name, birth_date, timezone)
+VALUES
+  (1, 'alice@example.com', 'alice123', 'Alice Kim', '1990-05-17', 'Asia/Seoul'),
+  (2, 'bob@example.com', 'bob456', 'Bob Lee',   '1985-11-02', 'Asia/Seoul');
+
+-- emotion_categories
+INSERT INTO emotion_categories (id, name, name_en, color_code, intensity_level, is_positive, description)
+VALUES
+  (1, '행복',   'joy',      '#FFEB3B', 8, 'Positive', '기쁜 상태'),
+  (2, '슬픔',   'sadness',  '#2196F3', 6, 'Negative', '우울하거나 슬픈 상태'),
+  (3, '분노',   'anger',    '#F44336', 7, 'Negative', '화난 상태'),
+  (4, '놀람',   'surprise', '#03A9F4', 5, 'Neutral',  '예상치 못한 상황에 깜짝 놀란 상태'),
+  (5, '평온',   'calm',     '#8BC34A', 4, 'Positive', '마음이 차분한 상태');
+
+-- diary_entries
+INSERT INTO diary_entries (id, users_id, title, content, entry_date, weather, analysis_status)
+VALUES
+  (101, 1, '좋은 하루', '오늘 친구를 만나서 즐거운 시간을 보냈어요.', '2025-06-01', '맑음', 'Processing'),
+  (102, 2, '슬픈 소식', '가족이 몸이 아파서 속상했어요.',          '2025-06-02', '흐림', 'Processing');
+
+-- emotion_analyses
+INSERT INTO emotion_analyses (id, diary_entry_id, overall_sentiment, confidence_score, dominant_emotion, emotional_intensity, analysis_timestamp)
+VALUES
+  (1001, 101, 'Positive', 0.9532, 'joy',     0.85, '2025-06-01 18:30:00'),
+  (1002, 102, 'Negative', 0.8765, 'sadness', 0.78, '2025-06-02 20:15:00');
+
+-- emotion_scores
+INSERT INTO emotion_scores (analysis_id, emotion_category_id, score, intensity)
+VALUES
+  (1001, 1, 0.85, 8),  -- 행복
+  (1001, 4, 0.10, 5),  -- 놀람
+  (1001, 5, 0.05, 4),  -- 평온
+  (1002, 2, 0.78, 6),  -- 슬픔
+  (1002, 3, 0.15, 7),  -- 분노
+  (1002, 4, 0.07, 5);  -- 놀람
+
+-- daily_summaries
+INSERT INTO daily_summaries (analysis_id, summary_text, key_events, important_people, locations, activities)
+VALUES
+  (1001,
+   '오랜만에 친구와 만나 즐거운 시간을 보냈다.',
+   JSON_ARRAY('친구와 점심식사','영화 관람'),
+   JSON_ARRAY('민수'),
+   JSON_ARRAY('서울 강남구 카페','서울 강남구 영화관'),
+   JSON_ARRAY('산책','영화보기')
+  ),
+  (1002,
+   '가족 건강 문제로 속상한 하루였다.',
+   JSON_ARRAY('병원 방문'),
+   JSON_ARRAY('어머니'),
+   JSON_ARRAY('서울 종로구 병원'),
+   JSON_ARRAY('진료 대기','병문안')
+  );
+
+-- comfort_messages
+INSERT INTO comfort_messages (analysis_id, comfort_text, encouragement_text, advice_text, personalization_level)
+VALUES
+  (1002,
+   '힘든 상황에서도 잘 버티고 있어요.',
+   '조만간 가족분도 회복하실 거예요. 조금만 더 힘내세요!',
+   '오늘은 따뜻한 차 한 잔과 함께 휴식을 취해보세요.',
+   9
+  );
