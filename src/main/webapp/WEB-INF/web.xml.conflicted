@@ -29,7 +29,43 @@
         <url-pattern>/*</url-pattern>
     </filter-mapping>
 
-    <!-- 서블릿은 @WebServlet 어노테이션으로 설정됨 -->
+    <!-- 서블릿 설정 (어노테이션 사용으로 생략 가능하지만 명시적 설정) -->
+    
+    <!-- WriteServlet -->
+    <servlet>
+        <servlet-name>WriteServlet</servlet-name>
+        <servlet-class>controller.WriteServlet</servlet-class>
+        <load-on-startup>1</load-on-startup>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>WriteServlet</servlet-name>
+        <url-pattern>/write</url-pattern>
+    </servlet-mapping>
+
+    <!-- ListServlet -->
+    <servlet>
+        <servlet-name>ListServlet</servlet-name>
+        <servlet-class>controller.ListServlet</servlet-class>
+        <load-on-startup>2</load-on-startup>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>ListServlet</servlet-name>
+        <url-pattern>/list</url-pattern>
+    </servlet-mapping>
+
+    <!-- StatsServlet -->
+    <servlet>
+        <servlet-name>StatsServlet</servlet-name>
+        <servlet-class>controller.StatsServlet</servlet-class>
+        <load-on-startup>3</load-on-startup>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>StatsServlet</servlet-name>
+        <url-pattern>/stats</url-pattern>
+    </servlet-mapping>
 
     <!-- 기본 페이지 설정 -->
     <welcome-file-list>
